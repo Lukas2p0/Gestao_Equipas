@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão de Equipa e Secções</title>
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --primary: #0056b3;
@@ -204,7 +205,7 @@
         
         distribution = {};
         sections.forEach(s => distribution[s.id] = []);
-        let pool = [...members].sort((a, b) => b.stars - a.stars); // Maiores primeiro
+        let pool = [...members].sort((a, b) => b.stars - a.stars); 
         let unassigned = [];
 
         // PASSO 1: Garantir que NENHUMA secção fica vazia
@@ -229,7 +230,6 @@
         let ones = pool.filter(m => m.stars === 1);
         let others = pool.filter(m => m.stars > 1);
 
-        // 2.1 Colocar os de 1 estrela restantes
         ones.forEach(m => {
             let validSections = sections.filter(s => s.stars === 1);
             if(validSections.length === 0) { unassigned.push(m); return; }
@@ -247,7 +247,6 @@
             }
         });
 
-        // 2.2 Colocar o resto para balancear
         others.forEach(m => {
             let validSections = sections.filter(s => m.stars >= s.stars);
             if(validSections.length === 0) { unassigned.push(m); return; }
@@ -340,5 +339,18 @@
         swapSourceId = null;
     }
 </script>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(registration => {
+                console.log('ServiceWorker registration successful');
+            }).catch(err => {
+                console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+    }
+</script>
+
 </body>
 </html>

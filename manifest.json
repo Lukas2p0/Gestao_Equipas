@@ -1,0 +1,16 @@
+{
+  "name": "Gestor de Equipa",
+  "short_name": "Gestor",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#0056b3",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/512/0056b3/ffffff?text=GE",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

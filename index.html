@@ -72,6 +72,7 @@
         }
         .list-item:last-child { border-bottom: none; }
         .stars { color: #f39c12; font-weight: bold; }
+        .badge-capacity { background-color: #e9ecef; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; color: #555; margin-left: 5px; }
         .btn-delete { background-color: #dc3545; padding: 5px 10px; width: auto; font-size: 0.8rem; margin: 0; }
         
         .modal {
@@ -92,7 +93,7 @@
         .section-box {
             border: 1px solid #ccc; border-radius: 5px; margin-bottom: 15px; padding: 10px;
         }
-        .section-header { font-weight: bold; margin-bottom: 10px; color: var(--primary); }
+        .section-header { font-weight: bold; margin-bottom: 10px; color: var(--primary); display: flex; justify-content: space-between; align-items: center;}
         .member-chip {
             background: #e9ecef; padding: 8px; border-radius: 5px; margin-bottom: 5px;
             display: flex; justify-content: space-between; align-items: center;
@@ -135,6 +136,7 @@
             <option value="2">⭐⭐ (2 Estrelas)</option>
             <option value="1">⭐ (1 Estrela)</option>
         </select>
+        <input type="number" id="sectionCapacity" placeholder="Nº de Elementos (Mínimo 1)" min="1">
         <button onclick="addSection()">Adicionar Secção</button>
         <div id="sectionsList"></div>
     </div>
@@ -178,9 +180,16 @@
     function addSection() {
         const name = document.getElementById('sectionName').value.trim();
         const stars = parseInt(document.getElementById('sectionStars').value);
+        
+        // Regra da Capacidade Mínima
+        let capacity = parseInt(document.getElementById('sectionCapacity').value);
+        if(isNaN(capacity) || capacity < 1) capacity = 1;
+
         if(!name) return alert("Insere o nome da secção.");
-        sections.push({ id: generateId(), name, stars });
+        sections.push({ id: generateId(), name, stars, capacity });
+        
         document.getElementById('sectionName').value = '';
+        document.getElementById('sectionCapacity').value = '';
         renderLists();
     }
 
@@ -196,26 +205,28 @@
 
         document.getElementById('sectionsList').innerHTML = sections.map(s => `
             <div class="list-item">
-                <span>${s.name} <span class="stars">${'⭐'.repeat(s.stars)}</span></span>
+                <span>${s.name} <span class="stars">${'⭐'.repeat(s.stars)}</span> <span class="badge-capacity">${s.capacity} Vaga(s)</span></span>
                 <button class="btn-delete" onclick="removeSection('${s.id}')">X</button>
             </div>`).join('');
     }
 
     function generateDistribution() {
         if(sections.length === 0 || members.length === 0) return alert("Adiciona elementos e secções primeiro.");
-        if(members.length < sections.length) return alert("Tens menos pessoas do que secções.");
+        if(members.length < sections.length) return alert("Tens menos pessoas do que secções. Secções ficarão vazias!");
         
         distribution = {};
         sections.forEach(s => distribution[s.id] = []);
         let pool = [...members].sort((a, b) => b.stars - a.stars); 
         let unassigned = [];
 
+        // PASSO 1: Garantir pelo menos 1 pessoa em cada secção
         let sortedSections = [...sections].sort((a, b) => b.stars - a.stars);
         sortedSections.forEach(s => {
             let mIndex = pool.findIndex(m => m.stars >= s.stars);
             if (mIndex !== -1) {
                 let m = pool.splice(mIndex, 1)[0];
                 distribution[s.id].push(m);
+                // Acompanhante >= 3 estrelas para membros de 1 estrela
                 if (m.stars === 1) {
                     let highStarIndex = pool.findIndex(x => x.stars >= 3);
                     if (highStarIndex !== -1) {
@@ -225,18 +236,24 @@
             }
         });
 
+        // PASSO 2: Distribuir o resto priorizando o rácio "Pessoas Atuais / Capacidade"
         pool.forEach(m => {
             let validSections = sections.filter(s => m.stars >= s.stars);
             if(validSections.length === 0) { unassigned.push(m); return; }
             
             if(m.stars === 1) {
-                let s1 = sections.filter(s => s.stars === 1).sort((a,b) => distribution[a.id].length - distribution[b.id].length);
+                let s1 = validSections.filter(s => s.stars === 1).sort((a,b) => 
+                    (distribution[a.id].length / a.capacity) - (distribution[b.id].length / b.capacity)
+                );
                 if(s1.length > 0) {
                     let chosen = s1[0];
                     distribution[chosen.id].push(m);
                 } else { unassigned.push(m); }
             } else {
-                validSections.sort((a,b) => distribution[a.id].length - distribution[b.id].length);
+                // Balancear: a secção que estiver com menor percentagem de lotação recebe o membro
+                validSections.sort((a,b) => 
+                    (distribution[a.id].length / a.capacity) - (distribution[b.id].length / b.capacity)
+                );
                 distribution[validSections[0].id].push(m);
             }
         });
@@ -248,11 +265,18 @@
         const res = document.getElementById('distributionResult');
         let html = '';
         if(unassigned.length > 0) {
-            html += `<div style="color:red; margin-bottom:10px;">⚠️ ${unassigned.length} elemento(s) sem secção compatível.</div>`;
+            html += `<div style="color:red; margin-bottom:10px;">⚠️ ${unassigned.length} elemento(s) sem secção compatível (Estrelas).</div>`;
         }
         sections.forEach(s => {
+            let current = distribution[s.id].length;
+            let ratioColor = current > s.capacity ? "color: #dc3545;" : "color: #28a745;"; // Vermelho se exceder, verde se ok
+            
             html += `<div class="section-box">
-                <div class="section-header">${s.name} (${s.stars}⭐)</div>`;
+                <div class="section-header">
+                    <span>${s.name} (${s.stars}⭐)</span>
+                    <span style="${ratioColor} font-size: 0.9rem;">${current}/${s.capacity} Ocupados</span>
+                </div>`;
+            
             distribution[s.id].forEach(m => {
                 html += `<div class="member-chip">
                     <span>${m.name} (${m.stars}⭐)</span>

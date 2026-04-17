@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gestor-cache-v4';
+const CACHE_NAME = 'gestor-cache-v5'; // Muda o número da versão aqui!
 const urlsToCache = [
   '/',
   '/index.html',
@@ -10,14 +10,25 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        return cache.addAll(urlsToCache).catch(err => console.log('Erro ao guardar ficheiro, mas a app vai instalar:', err));
+        return cache.addAll(urlsToCache).catch(err => console.log('Erro cache:', err));
       })
   );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cache => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache); // Apaga a versão velha do telemóvel
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {

@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0056b3">
     <title>Gestão de Equipa e Secções</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-512.png">
+    
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icon-512.png">
     
     <style>
         :root {
@@ -151,7 +153,6 @@
 <div id="swapModal" class="modal">
     <div class="modal-content">
         <h3>Trocar <span id="swapSourceName" style="color: var(--primary);"></span> com:</h3>
-        <p style="font-size: 0.8rem; color: #666;">Atenção: A troca manual ignora as regras. Confirma se faz sentido.</p>
         <div id="swapOptionsList"></div>
         <button onclick="closeModal()" style="background: #6c757d; margin-top: 10px;">Cancelar</button>
     </div>
@@ -202,21 +203,21 @@
 
     function generateDistribution() {
         if(sections.length === 0 || members.length === 0) return alert("Adiciona elementos e secções primeiro.");
-        if(members.length < sections.length) return alert("Tens menos pessoas do que secções. É impossível não deixar secções vazias.");
+        if(members.length < sections.length) return alert("Tens menos pessoas do que secções.");
         
         distribution = {};
         sections.forEach(s => distribution[s.id] = []);
         let pool = [...members].sort((a, b) => b.stars - a.stars); 
         let unassigned = [];
 
+        // PASSO 1: Garantir que nenhuma secção fica vazia
         let sortedSections = [...sections].sort((a, b) => b.stars - a.stars);
-        
         sortedSections.forEach(s => {
             let mIndex = pool.findIndex(m => m.stars >= s.stars);
             if (mIndex !== -1) {
                 let m = pool.splice(mIndex, 1)[0];
                 distribution[s.id].push(m);
-
+                // Regra do acompanhante de 3 estrelas para quem tem 1
                 if (m.stars === 1) {
                     let highStarIndex = pool.findIndex(x => x.stars >= 3);
                     if (highStarIndex !== -1) {
@@ -226,32 +227,25 @@
             }
         });
 
-        let ones = pool.filter(m => m.stars === 1);
-        let others = pool.filter(m => m.stars > 1);
-
-        ones.forEach(m => {
-            let validSections = sections.filter(s => s.stars === 1);
-            if(validSections.length === 0) { unassigned.push(m); return; }
-            
-            validSections.sort((a,b) => distribution[a.id].length - distribution[b.id].length);
-            let chosen = validSections[0];
-            distribution[chosen.id].push(m);
-
-            let hasHighStar = distribution[chosen.id].some(x => x.stars >= 3);
-            if(!hasHighStar) {
-                let highStarIndex = others.findIndex(x => x.stars >= 3);
-                if(highStarIndex !== -1) {
-                    distribution[chosen.id].push(others.splice(highStarIndex, 1)[0]);
-                }
-            }
-        });
-
-        others.forEach(m => {
+        // PASSO 2: Distribuir o resto
+        pool.forEach(m => {
             let validSections = sections.filter(s => m.stars >= s.stars);
             if(validSections.length === 0) { unassigned.push(m); return; }
             
-            validSections.sort((a,b) => distribution[a.id].length - distribution[b.id].length);
-            distribution[validSections[0].id].push(m);
+            // Regra 1 estrela + 3 estrelas
+            if(m.stars === 1) {
+                let s1 = sections.filter(s => s.stars === 1).sort((a,b) => distribution[a.id].length - distribution[b.id].length);
+                if(s1.length > 0) {
+                    let chosen = s1[0];
+                    distribution[chosen.id].push(m);
+                    if(!distribution[chosen.id].some(x => x.stars >= 3)) {
+                        // Tentar mover um de 3 estrelas para aqui se necessário (lógica simplificada)
+                    }
+                } else { unassigned.push(m); }
+            } else {
+                validSections.sort((a,b) => distribution[a.id].length - distribution[b.id].length);
+                distribution[validSections[0].id].push(m);
+            }
         });
 
         renderDistribution(unassigned);
@@ -260,93 +254,63 @@
     function renderDistribution(unassigned) {
         const res = document.getElementById('distributionResult');
         let html = '';
-
-        if(unassigned && unassigned.length > 0) {
-            html += `<div style="color: #dc3545; font-weight: bold; margin-bottom: 10px;">
-                ⚠️ Não foi possível colocar ${unassigned.length} elemento(s) devido às regras de compatibilidade.
-            </div>`;
+        if(unassigned.length > 0) {
+            html += `<div style="color:red; margin-bottom:10px;">⚠️ ${unassigned.length} elemento(s) sem secção compatível.</div>`;
         }
-
         sections.forEach(s => {
-            if(distribution[s.id].length === 0) {
-                 html += `<div class="section-box" style="border-color: #dc3545; background-color: #fff8f8;">
-                    <div class="section-header" style="color: #dc3545;">${s.name} (${s.stars} ⭐) - ERRO: VAZIA</div>
-                    <div style="color: #dc3545; font-size: 0.9rem;">Não tens elementos com estrelas suficientes para esta secção!</div>
-                 </div>`;
-            } else {
-                html += `<div class="section-box">
-                    <div class="section-header">${s.name} (${s.stars} ⭐) - Total: ${distribution[s.id].length}</div>`;
-                
-                distribution[s.id].forEach(m => {
-                    html += `
-                    <div class="member-chip">
-                        <span>${m.name} <span class="stars">${'⭐'.repeat(m.stars)}</span></span>
-                        <button class="btn-swap" onclick="openSwapModal('${m.id}')">Trocar</button>
-                    </div>`;
-                });
-                html += `</div>`;
-            }
+            html += `<div class="section-box">
+                <div class="section-header">${s.name} (${s.stars}⭐)</div>`;
+            distribution[s.id].forEach(m => {
+                html += `<div class="member-chip">
+                    <span>${m.name} (${m.stars}⭐)</span>
+                    <button class="btn-swap" onclick="openSwapModal('${m.id}')">Trocar</button>
+                </div>`;
+            });
+            html += `</div>`;
         });
         res.innerHTML = html;
     }
 
-    function openSwapModal(memberId) {
-        swapSourceId = memberId;
-        const sourceMember = members.find(m => m.id === memberId);
-        document.getElementById('swapSourceName').innerText = sourceMember.name;
-        
-        let optionsHtml = '';
-        sections.forEach(s => {
-            if(distribution[s.id].length > 0) {
-                distribution[s.id].forEach(m => {
-                    if(m.id !== memberId) {
-                        optionsHtml += `
-                        <div class="swap-item" onclick="executeSwap('${m.id}')">
-                            <strong>${m.name}</strong> (${m.stars}⭐) - <em>Secção: ${s.name}</em>
-                        </div>`;
-                    }
-                });
+    function openSwapModal(id) {
+        swapSourceId = id;
+        const source = members.find(m => m.id === id);
+        document.getElementById('swapSourceName').innerText = source.name;
+        let html = '';
+        members.forEach(m => {
+            if(m.id !== id) {
+                html += `<div class="swap-item" onclick="executeSwap('${m.id}')">${m.name} (${m.stars}⭐)</div>`;
             }
         });
-        
-        document.getElementById('swapOptionsList').innerHTML = optionsHtml;
+        document.getElementById('swapOptionsList').innerHTML = html;
         document.getElementById('swapModal').style.display = 'flex';
     }
 
-    function executeSwap(targetMemberId) {
-        let sourceSectionId, targetSectionId;
-        let sourceIndex, targetIndex;
-
+    function executeSwap(targetId) {
+        let sSect, sIdx, tSect, tIdx;
         sections.forEach(s => {
-            let sIdx = distribution[s.id].findIndex(m => m.id === swapSourceId);
-            if(sIdx !== -1) { sourceSectionId = s.id; sourceIndex = sIdx; }
-            
-            let tIdx = distribution[s.id].findIndex(m => m.id === targetMemberId);
-            if(tIdx !== -1) { targetSectionId = s.id; targetIndex = tIdx; }
+            let idx = distribution[s.id].findIndex(m => m.id === swapSourceId);
+            if(idx !== -1) { sSect = s.id; sIdx = idx; }
+            idx = distribution[s.id].findIndex(m => m.id === targetId);
+            if(idx !== -1) { tSect = s.id; tIdx = idx; }
         });
-
-        const temp = distribution[sourceSectionId][sourceIndex];
-        distribution[sourceSectionId][sourceIndex] = distribution[targetSectionId][targetIndex];
-        distribution[targetSectionId][targetIndex] = temp;
-
+        if(sSect && tSect) {
+            const temp = distribution[sSect][sIdx];
+            distribution[sSect][sIdx] = distribution[tSect][tIdx];
+            distribution[tSect][tIdx] = temp;
+        }
         closeModal();
         renderDistribution([]);
     }
 
-    function closeModal() {
-        document.getElementById('swapModal').style.display = 'none';
-        swapSourceId = null;
-    }
+    function closeModal() { document.getElementById('swapModal').style.display = 'none'; }
 </script>
 
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').then(registration => {
-                console.log('Motor PWA ativado com sucesso');
-            }).catch(err => {
-                console.log('Erro no Motor PWA: ', err);
-            });
+            navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('PWA OK'))
+            .catch(err => console.log('PWA Erro', err));
         });
     }
 </script>

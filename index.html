@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão de Equipa e Secções</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    
     <style>
         :root {
             --primary: #0056b3;
@@ -95,7 +97,6 @@
         }
         .btn-swap { background: #17a2b8; padding: 5px 10px; width: auto; font-size: 0.8rem; margin: 0;}
         
-        /* Estilo para a assinatura */
         .signature {
             text-align: center;
             padding: 20px;
@@ -208,7 +209,6 @@
         let pool = [...members].sort((a, b) => b.stars - a.stars); 
         let unassigned = [];
 
-        // PASSO 1: Garantir que NENHUMA secção fica vazia
         let sortedSections = [...sections].sort((a, b) => b.stars - a.stars);
         
         sortedSections.forEach(s => {
@@ -226,7 +226,6 @@
             }
         });
 
-        // PASSO 2: Distribuir os restantes membros da pool
         let ones = pool.filter(m => m.stars === 1);
         let others = pool.filter(m => m.stars > 1);
 

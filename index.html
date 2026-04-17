@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#0056b3">
     <title>Gestão de Equipa e Secções</title>
     
-    <link rel="manifest" href="./manifest.json">
-    <link rel="apple-touch-icon" href="./icon-512.png">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-512.png">
     
     <style>
         :root {
@@ -210,14 +210,12 @@
         let pool = [...members].sort((a, b) => b.stars - a.stars); 
         let unassigned = [];
 
-        // PASSO 1: Garantir que nenhuma secção fica vazia
         let sortedSections = [...sections].sort((a, b) => b.stars - a.stars);
         sortedSections.forEach(s => {
             let mIndex = pool.findIndex(m => m.stars >= s.stars);
             if (mIndex !== -1) {
                 let m = pool.splice(mIndex, 1)[0];
                 distribution[s.id].push(m);
-                // Regra do acompanhante de 3 estrelas para quem tem 1
                 if (m.stars === 1) {
                     let highStarIndex = pool.findIndex(x => x.stars >= 3);
                     if (highStarIndex !== -1) {
@@ -227,20 +225,15 @@
             }
         });
 
-        // PASSO 2: Distribuir o resto
         pool.forEach(m => {
             let validSections = sections.filter(s => m.stars >= s.stars);
             if(validSections.length === 0) { unassigned.push(m); return; }
             
-            // Regra 1 estrela + 3 estrelas
             if(m.stars === 1) {
                 let s1 = sections.filter(s => s.stars === 1).sort((a,b) => distribution[a.id].length - distribution[b.id].length);
                 if(s1.length > 0) {
                     let chosen = s1[0];
                     distribution[chosen.id].push(m);
-                    if(!distribution[chosen.id].some(x => x.stars >= 3)) {
-                        // Tentar mover um de 3 estrelas para aqui se necessário (lógica simplificada)
-                    }
                 } else { unassigned.push(m); }
             } else {
                 validSections.sort((a,b) => distribution[a.id].length - distribution[b.id].length);
@@ -308,9 +301,9 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('PWA OK'))
-            .catch(err => console.log('PWA Erro', err));
+            navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('PWA registado com sucesso!'))
+            .catch(err => console.log('PWA falhou: ', err));
         });
     }
 </script>
